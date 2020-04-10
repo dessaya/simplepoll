@@ -1,12 +1,23 @@
 import sys
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-if len(sys.argv) < 5:
-    print(f"Usage: {sys.argv[0]} <base-url> <question> <option1> <option2> ...")
+if len(sys.argv) != 2:
+    print(f"Usage: {sys.argv[0]} <base-url>")
+    sys.exit(1)
 
 base = sys.argv[1].rstrip('/')
-question = sys.argv[2]
-options = sys.argv[3:]
+question = input("Question: ")
+options = []
+while True:
+    option = input("Option (leave blank when done): ")
+    if not option:
+        break
+    options.append(option)
+
+if len(options) < 2:
+    print(f"We need at least 2 options.")
+    sys.exit(1)
 
 responses = {}
 
@@ -51,11 +62,14 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         responses[n] = responses.get(n, 0) + 1
         self.send(200, f'You voted: {options[n]}')
 
+print()
+print(f"Listening on 0.0.0.0:8000")
+print(f'Poll results at {base}/responses')
+print(f"Send the following to your audience:")
+print()
 print(question)
 for (i, option) in enumerate(options):
     print(f'{option}: {base}/{i}')
-print()
-print(f'{base}/responses')
 
 httpd = HTTPServer(('0.0.0.0', 8000), SimpleHTTPRequestHandler)
 httpd.serve_forever()
