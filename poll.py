@@ -49,7 +49,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         if not 0 <= n < len(options):
             raise Exception(f"Invalid URL: {self.path}")
         responses[n] = responses.get(n, 0) + 1
-        self.send(200, f'Votaste {n}')
+        self.send(200, f'You voted: {options[n]}')
 
 print(question)
 for (i, option) in enumerate(options):
