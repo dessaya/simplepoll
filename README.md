@@ -1,23 +1,34 @@
 # Simple poll
 
-Example:
+Send a quick multiple-choice poll to your audience.
+
+Usage:
 
 ```
-$ python3 poll.py 'http://localhost:8000'
-
-Question: Cats or dogs?
-Option (leave blank when done): Cats FTW
-Option (leave blank when done): Dogs FTW
-Option (leave blank when done): 
-
-Listening on 0.0.0.0:8000
-Poll results at http://localhost:8000/responses
-Send the following to your audience:
-
-Cats or dogs?
-Cats FTW: http://localhost:8000/0
-Dogs FTW: http://localhost:8000/1
+$ python3 poll.py
 ```
 
-Note: the `base-url` parameter is only used to generate the links. The HTTP
-server listens on `0.0.0.0:8000` regardless.
+*   Go to `http://localhost:8000`
+*   Create a poll by entering the title and options.
+*   Your poll will look like:
+
+    ----
+
+    # Cats or dogs?
+
+    Cats: http://localhost:8000/1bxtpp/0
+    Dogs: http://localhost:8000/1bxtpp/1
+
+        Option  Votes  %
+        Cats    0      0
+        Dogs    0      0
+
+    ----
+
+*   Send the links to your audience.
+*   Each time someone performs a GET on one of the given URLs a vote is cast.
+*   Refresh the page to view the results.
+
+Note: Polls are stored in RAM, and will be lost when the service is
+restarted. Also, there is a limit of the amount of polls stored, so old ones
+will be eventually evicted.

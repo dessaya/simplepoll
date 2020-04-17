@@ -1,12 +1,23 @@
-from bottle import route, run, request, response, redirect, abort
+from bottle import route, run, request, response, redirect, HTTPResponse
 import os
 from datetime import datetime
+import random
+import string
+from collections import OrderedDict
 
-BASE_URL = os.environ.get('POLL_BASE_URL', None)
+PORT = int(os.environ.get('PORT', '8000'))
+
+alnum = string.ascii_lowercase + string.digits
+def make_key():
+    return ''.join(random.choices(alnum, k=6))
+
+def link(path):
+    return f'{request.url[:-len(request.path)].rstrip("/")}{path}'.rstrip('/')
 
 class Poll:
-    def __init__(self, question, options):
-        self.question = question
+    def __init__(self, title, options):
+        self.key = make_key()
+        self.title = title
         self.options = options
         self.started_at = datetime.now()
         self.responses = {}
@@ -18,7 +29,15 @@ class Poll:
         p = int((self.responses.get(i, 0) / total) * 100 + 0.5)
         return f'<div style="width:300px; height: 1em; border: 1px solid #007bff"><div style="width:{p}%; height:100%; background-color: #007bff"></div></div>'
 
-current = None
+polls = OrderedDict()
+
+def evict_old_polls():
+    while len(polls) > 100:
+        key, _ = polls.popitem(last=False)
+        print(f'Evicted poll {key}')
+
+def get_poll(key):
+    return polls.get(key, None) or error(404, 'Not Found')
 
 def html(s):
     return f'''<!doctype html><html><head>
@@ -28,13 +47,16 @@ def html(s):
         <link rel="stylesheet" href="https://unpkg.com/marx-css/css/marx.min.css">
         </head><body><main role="main">{s}</main></body></html>'''
 
+def error(status, msg):
+    raise HTTPResponse(html(f'<h1>Oops</h1><p>{msg}</p>'), status)
+
 @route('/', method="GET")
 def index():
     return html(f'''
         <h1>Configure your poll</h1>
-        <form action="{request.url}" method="post">
+        <form action="{link('/')}" method="post">
             <div>
-            <input name="question" id="question" type="text" placeholder="Question" />
+            <input name="title" id="title" type="text" placeholder="Title" />
             </div>
             <div>
             <textarea id="options" name="options" rows="10" cols="50" placeholder="Options (one per line)"></textarea>
@@ -45,28 +67,29 @@ def index():
 
 @route('/', method="POST")
 def create_poll():
-    question = request.forms.question.strip()
+    title = request.forms.title.strip()
     options = [s.strip() for s in request.forms.options.split('\n') if s.strip()]
 
     if len(options) < 2:
-        abort(400, html("We need at least 2 options."))
-        return
+        error(400, 'We need at least 2 options.')
 
-    global current
-    current = Poll(question, options)
-    redirect(request.url.rstrip('/') + "/results")
+    poll = Poll(title, options)
+    polls[poll.key] = poll
+    evict_old_polls()
+    redirect(link(f'/{poll.key}'))
 
-@route('/results', method="GET")
-def index():
+@route('/<key>', method="GET")
+def index(key):
+    poll = get_poll(key)
     links = []
     stats = []
-    for (i, option) in enumerate(current.options):
-        url = f'{request.url[:-len(request.path)]}/{i}'
+    for (i, option) in enumerate(poll.options):
+        url = link(f'/{key}/{i}')
         links.append(f'<li>{option}: <a href="{url}">{url}</a></li>')
-        stats.append(f'<tr><th>{option}</th><td>{current.responses.get(i, 0)}</td><td>{current.percentage(i)}</td></tr>')
+        stats.append(f'<tr><th>{option}</th><td>{poll.responses.get(i, 0)}</td><td>{poll.percentage(i)}</td></tr>')
 
     return html(f'''
-        <h1>{current.question}</h1>
+        <h1>{poll.title}</h1>
         <ul>{''.join(links)}</ul>
         <table>
             <thead><tr><th>Option</th><th>Votes</th><th>%</th></tr></thead>
@@ -74,9 +97,12 @@ def index():
         </table>
     ''')
 
-@route('/<i:int>', method="GET")
-def vote(i):
-    current.responses[i] = current.responses.get(i, 0) + 1
-    return html(f'<center class="hero"><h1>Thank you for voting!</h1><p>You voted: <b>{current.options[i]}</b></p></center>')
+@route('/<key>/<i:int>', method="GET")
+def vote(key, i):
+    poll = get_poll(key)
+    if i >= len(poll.options):
+        error(404, 'Not Found')
+    poll.responses[i] = poll.responses.get(i, 0) + 1
+    return html(f'<center class="hero"><h1>Thank you for voting!</h1><p>You voted: <b>{poll.options[i]}</b></p></center>')
 
-run(host='localhost', port=8000)
+run(host='localhost', port=PORT)
