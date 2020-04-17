@@ -45,8 +45,8 @@ def index():
 
 @route('/', method="POST")
 def create_poll():
-    question = request.forms.get('question', '').strip()
-    options = [s.strip() for s in request.forms.get('options', '').split('\n') if s.strip()]
+    question = request.forms.question.strip()
+    options = [s.strip() for s in request.forms.options.split('\n') if s.strip()]
 
     if len(options) < 2:
         abort(400, html("We need at least 2 options."))
