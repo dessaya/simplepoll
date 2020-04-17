@@ -16,7 +16,7 @@ class Poll:
         if not total:
             return 0
         p = int((self.responses.get(i, 0) / total) * 100 + 0.5)
-        return f'<div style="width:40vw; height: 1em; border: 1px solid #007bff"><div style="width:{p}%; height:100%; background-color: #007bff"></div></div>'
+        return f'<div style="width:300px; height: 1em; border: 1px solid #007bff"><div style="width:{p}%; height:100%; background-color: #007bff"></div></div>'
 
 current = None
 
@@ -30,9 +30,9 @@ def html(s):
 
 @route('/', method="GET")
 def index():
-    return html('''
+    return html(f'''
         <h1>Configure your poll</h1>
-        <form action="/" method="post">
+        <form action="{request.url}" method="post">
             <div>
             <input name="question" id="question" type="text" placeholder="Question" />
             </div>
@@ -54,7 +54,7 @@ def create_poll():
 
     global current
     current = Poll(question, options)
-    redirect("/results")
+    redirect(request.url.rstrip('/') + "/results")
 
 @route('/results', method="GET")
 def index():
