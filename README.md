@@ -16,8 +16,8 @@ $ python3 poll.py
 
     # Cats or dogs?
 
-    Cats: http://localhost:8000/1bxtpp/0
-    Dogs: http://localhost:8000/1bxtpp/1
+    * Cats: http://localhost:8000/1bxtpp/0
+    * Dogs: http://localhost:8000/1bxtpp/1
 
         Option  Votes  %
         Cats    0      0
