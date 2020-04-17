@@ -1,75 +1,82 @@
-import sys
+from bottle import route, run, request, response, redirect, abort
 import os
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from datetime import datetime
 
-if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} <base-url>")
-    sys.exit(1)
+BASE_URL = os.environ.get('POLL_BASE_URL', None)
 
-base = sys.argv[1].rstrip('/')
-question = input("Question: ")
-options = []
-while True:
-    option = input("Option (leave blank when done): ")
-    if not option:
-        break
-    options.append(option)
+class Poll:
+    def __init__(self, question, options):
+        self.question = question
+        self.options = options
+        self.started_at = datetime.now()
+        self.responses = {}
 
-if len(options) < 2:
-    print(f"We need at least 2 options.")
-    sys.exit(1)
+    def percentage(self, i):
+        total = sum(v for k, v in self.responses.items())
+        if not total:
+            return 0
+        p = int((self.responses.get(i, 0) / total) * 100 + 0.5)
+        return f'<div style="width:40vw; height: 1em; border: 1px solid #007bff"><div style="width:{p}%; height:100%; background-color: #007bff"></div></div>'
 
-responses = {}
+current = None
 
-def percentage(i):
-    total = sum(v for k, v in responses.items())
-    if not total:
-        return 0
-    return int((responses.get(i, 0) / total) * 100 + 0.5)
+def html(s):
+    return f'''<!doctype html><html><head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Simple poll</title>
+        <link rel="stylesheet" href="https://unpkg.com/marx-css/css/marx.min.css">
+        </head><body><main role="main">{s}</main></body></html>'''
 
-def format_responses():
-    s = [question, '']
-    for (i, option) in enumerate(options):
-        s.append(f'{option}: {responses.get(i, 0)} ({percentage(i)}%)')
-    return '\n'.join(s)
+@route('/', method="GET")
+def index():
+    return html('''
+        <h1>Configure your poll</h1>
+        <form action="/" method="post">
+            <div>
+            <input name="question" id="question" type="text" placeholder="Question" />
+            </div>
+            <div>
+            <textarea id="options" name="options" rows="10" cols="50" placeholder="Options (one per line)"></textarea>
+            </div>
+            <input type="submit" value="Create poll">
+        </form>
+    ''')
 
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-    def send(self, code, s):
-        s = (f'''<!doctype html>
-<html><head><meta charset="utf-8"></head>
-<body>
-<pre style="font-size: xxx-large">
-{s}
-</pre>
-</body>
-</html>''').encode('utf8')
-        self.send_response(code)
-        self.send_header("Content-type", "text/html")
-        self.send_header("Content-length", len(s))
-        self.end_headers()
-        self.wfile.write(s)
+@route('/', method="POST")
+def create_poll():
+    question = request.forms.get('question', '').strip()
+    options = [s.strip() for s in request.forms.get('options', '').split('\n') if s.strip()]
 
-    def do_GET(self):
-        if self.path == '/responses':
-            self.send(200, format_responses())
-            return
-        if not self.path[1:].isdigit():
-            self.send(404, 'Not found')
-            return
-        n = int(self.path[1:])
-        if not 0 <= n < len(options):
-            raise Exception(f"Invalid URL: {self.path}")
-        responses[n] = responses.get(n, 0) + 1
-        self.send(200, f'You voted: {options[n]}')
+    if len(options) < 2:
+        abort(400, html("We need at least 2 options."))
+        return
 
-print()
-print(f"Listening on 0.0.0.0:8000")
-print(f'Poll results at {base}/responses')
-print(f"Send the following to your audience:")
-print()
-print(question)
-for (i, option) in enumerate(options):
-    print(f'{option}: {base}/{i}')
+    global current
+    current = Poll(question, options)
+    redirect("/results")
 
-httpd = HTTPServer(('0.0.0.0', 8000), SimpleHTTPRequestHandler)
-httpd.serve_forever()
+@route('/results', method="GET")
+def index():
+    links = []
+    stats = []
+    for (i, option) in enumerate(current.options):
+        url = f'{request.url[:-len(request.path)]}/{i}'
+        links.append(f'<li>{option}: <a href="{url}">{url}</a></li>')
+        stats.append(f'<tr><th>{option}</th><td>{current.responses.get(i, 0)}</td><td>{current.percentage(i)}</td></tr>')
+
+    return html(f'''
+        <h1>{current.question}</h1>
+        <ul>{''.join(links)}</ul>
+        <table>
+            <thead><tr><th>Option</th><th>Votes</th><th>%</th></tr></thead>
+            {''.join(stats)}
+        </table>
+    ''')
+
+@route('/<i:int>', method="GET")
+def vote(i):
+    current.responses[i] = current.responses.get(i, 0) + 1
+    return html(f'<center class="hero"><h1>Thank you for voting!</h1><p>You voted: <b>{current.options[i]}</b></p></center>')
+
+run(host='localhost', port=8000)
