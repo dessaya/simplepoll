@@ -1,9 +1,8 @@
 from bottle import route, run, request, response, redirect, HTTPResponse, template
-import os
-from datetime import datetime
+from collections import OrderedDict
 import random
 import string
-from collections import OrderedDict
+import os
 
 PORT = int(os.environ.get('PORT', '8000'))
 
@@ -19,7 +18,6 @@ class Poll:
         self.key = make_key()
         self.title = title
         self.options = options
-        self.started_at = datetime.now()
         self.responses = {}
 
     def percentage(self, i):
