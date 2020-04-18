@@ -1,4 +1,4 @@
-from bottle import route, run, request, response, redirect, HTTPResponse
+from bottle import route, run, request, response, redirect, HTTPResponse, template
 import os
 from datetime import datetime
 import random
@@ -26,8 +26,7 @@ class Poll:
         total = sum(v for k, v in self.responses.items())
         if not total:
             return 0
-        p = int((self.responses.get(i, 0) / total) * 100 + 0.5)
-        return f'<div style="width:300px; height: 1em; border: 1px solid #007bff"><div style="width:{p}%; height:100%; background-color: #007bff"></div></div>'
+        return int((self.responses.get(i, 0) / total) * 100 + 0.5)
 
 polls = OrderedDict()
 
@@ -87,19 +86,34 @@ def index(key):
     poll = get_poll(key)
     links = []
     stats = []
-    for (i, option) in enumerate(poll.options):
-        url = link(f'/{key}/{i}')
-        links.append(f'<li>{option}: <a href="{url}">{url}</a></li>')
-        stats.append(f'<tr><th>{option}</th><td>{poll.responses.get(i, 0)}</td><td>{poll.percentage(i)}</td></tr>')
-
-    return html(f'''
-        <h1>{poll.title}</h1>
-        <ul>{''.join(links)}</ul>
-        <table>
-            <thead><tr><th>Option</th><th>Votes</th><th>%</th></tr></thead>
-            {''.join(stats)}
-        </table>
-    ''')
+    return html(template(
+        '''
+            <h1>{{poll.title}}</h1>
+            <ul>
+            % for (i, option) in enumerate(poll.options):
+                % url = link(f'/{poll.key}/{i}')
+                <li><b>{{option}}:</b> <a href="{{!url}}">{{!url}}</a></li>
+            % end
+            </ul>
+            <table>
+                <thead><tr>
+                    <th>Option</th>
+                    <th>Votes</th>
+                    <th>%</th>
+                </tr></thead>
+                % for (i, option) in enumerate(poll.options):
+                    % p = poll.percentage(i)
+                    <tr>
+                        <th>{{option}}</th>
+                        <td>{{!poll.responses.get(i, 0)}}</td>
+                        <td><div style="width:300px; height: 1em; border: 1px solid #007bff"><div style="width:{{!p}}%; height:100%; background-color: #007bff"></div></div></td>
+                    </tr>
+                % end
+            </table>
+        ''',
+        poll=poll,
+        link=link,
+    ))
 
 @route('/<key>/<i:int>', method="GET")
 def vote(key, i):
@@ -107,6 +121,9 @@ def vote(key, i):
     if i >= len(poll.options):
         error(404, 'Not Found')
     poll.responses[i] = poll.responses.get(i, 0) + 1
-    return html(f'<center class="hero"><h1>Thank you for voting!</h1><p>You voted: <b>{poll.options[i]}</b></p></center>')
+    return html(template(
+        '<center class="hero"><h1>Thank you for voting!</h1><p>You voted: <b>{{option}}</b></p></center>',
+        option=poll.options[i],
+    ))
 
 run(host='localhost', port=PORT)
