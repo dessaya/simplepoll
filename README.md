@@ -1,6 +1,6 @@
 # Simple poll
 
-Send a quick multiple-choice poll to your audience.
+Send a quick multiple-choice poll to a live remote audience.
 
 Usage:
 
@@ -8,28 +8,11 @@ Usage:
 $ python3 poll.py
 ```
 
-*   Go to `http://localhost:8000`
-*   Create a poll by entering the title and options.
-*   Your poll will look like:
-
-    ----
-
-    ## Cats or dogs?
-
-    * Cats: http://localhost:8000/1bxtpp/0
-    * Dogs: http://localhost:8000/1bxtpp/1
-
-    ```
-    Option  Votes  %
-    Cats    0      0
-    Dogs    0      0
-    ```
-
-    ----
-
-*   Send the links to your audience.
-*   Each time someone performs a GET on one of the given URLs a vote is cast.
-*   Refresh the page to view the results.
+1.  Go to `http://localhost:8000`
+2.  Create a poll by entering the title and options.
+3.  The poll generates a unique URL for each option. Copy all URLs and send
+    them to your audience (eg. via videoconference chat).
+5.  Go to the poll results page.
 
 Note: Polls are stored in RAM, and will be lost when the service is
 restarted. Also, there is a limit of the amount of polls stored, so old ones

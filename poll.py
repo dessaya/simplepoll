@@ -53,6 +53,7 @@ def error(status, msg):
 def index():
     return html(f'''
         <form action="{link('/')}" method="post">
+            <h2>Step 1: Configure your poll</h2>
             <div>
             <input name="title" id="title" type="text" placeholder="Title" />
             </div>
@@ -71,30 +72,51 @@ def create_poll():
     if len(options) < 2:
         error(400, 'We need at least 2 options.')
 
-    poll = Poll(title, options)
+    for _ in range(5):
+        poll = Poll(title, options)
+        if poll.key not in polls:
+            break
+    else:
+        error(500, 'Failed to find an unused key')
+
     polls[poll.key] = poll
     evict_old_polls()
+
     redirect(link(f'/{poll.key}'))
 
 @route('/<key>', method="GET")
-def index(key):
+def admin(key):
     poll = get_poll(key)
-    links = []
-    stats = []
     return html(template(
         '''
-            <p>Share the following to your audience:</p>
+            <h2>Step 2: Share the voting links to your audience</h2>
+            <pre id="share">{{poll.title}}
+% for (i, option) in enumerate(poll.options):
+* {{option}}: {{!link(f'/{poll.key}/{i}')}}
+% end
+</pre>
+            <button id="sharebtn" onclick="share()">Copy to clipboard</button>
+            <script>
+            function share() {
+                navigator.clipboard.writeText(document.querySelector("#share").innerText).then(() => {
+                    document.querySelector("#sharebtn").innerHTML = "Copied!";
+                });
+            }
+            </script>
             <hr/>
+            <h2>Step 3: View the results</h2>
+            <a href="{{!link(f'/{poll.key}/results')}}"><button>View poll results</button></a>
+        ''',
+        poll=poll,
+        link=link,
+    ))
+
+@route('/<key>/results', method="GET")
+def results(key):
+    poll = get_poll(key)
+    return html(template(
+        '''
             <h2>{{poll.title}}</h2>
-            <ul>
-            % for (i, option) in enumerate(poll.options):
-                % url = link(f'/{poll.key}/{i}')
-                <li><b>{{option}}:</b> <a href="{{!url}}">{{!url}}</a></li>
-            % end
-            </ul>
-            <hr/>
-            <h3>Results</h3>
-            <p>Reload the page when all votes are cast.</p>
             <table style="width: 100%">
                 % for (i, option) in enumerate(poll.options):
                     % p = poll.percentage(i)
@@ -106,6 +128,7 @@ def index(key):
                     </tr>
                 % end
             </table>
+            <a href="{{!link(f'/{poll.key}')}}">Back to admin page</a>
         ''',
         poll=poll,
         link=link,
