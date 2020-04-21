@@ -60,8 +60,12 @@ def html(s):
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/yegor256/tacit@gh-pages/tacit-css-1.5.1.min.css"/>
         <style>
-            td {{ vertical-align: middle }}
-            h1:first-of-type, h2:first-of-type {{ margin-top: 0 }}
+            td {{ vertical-align: middle; }}
+            h1:first-of-type, h2:first-of-type {{ margin-top: 0; }}
+            body {{ background: #f0f0f0; }}
+            tbody tr:hover {{ background: #f0f0f0; }}
+            table {{ width: auto; }}
+            td, th {{ border: none; }}
         </style>
         <title>SimplePoll</title>
         </head><body><section>
@@ -79,10 +83,10 @@ def index():
         <form action="{index_url()}" method="post">
             <h2>Step 1: Configure your poll</h2>
             <div>
-            <input name="title" id="title" type="text" placeholder="Title" />
+            <input style="width: 100%" name="title" id="title" type="text" placeholder="Title" />
             </div>
             <div>
-            <textarea id="options" name="options" rows="10" cols="50" placeholder="Options (one per line)"></textarea>
+            <textarea style="width: 100%" id="options" name="options" rows="10" cols="50" placeholder="Options (one per line)"></textarea>
             </div>
             <input type="submit" value="Create poll">
         </form>
@@ -136,23 +140,20 @@ def results(key):
     return html(template(
         '''
             <h1>{{poll.title}}</h1>
-            <table style="width: 100%">
-                <thead><tr>
-                    <th>Option</th>
-                    <th>Votes</th>
-                    <th></th>
-                    <th></th>
-                </tr></thead>
+            <p>{{!sum(poll.responses.values())}} responses</p>
+            <center><table>
+                <tbody>
                 % for (i, option) in enumerate(poll.options):
                     % p = poll.percentage(i)
                     <tr>
-                        <td style="width: 50%">{{option}}</td>
-                        <td><nobr>{{!poll.responses.get(i, 0)}} votes</nobr></td>
-                        <td><nobr>{{p}}%</nobr></td>
-                        <td style="min-width: 30%"><div style="width:100%; height: 1em; border: 1px solid #007bff"><div style="width:{{!p}}%; height:100%; background-color: #007bff"></div></div></td>
+                        <th style="max-width: 50%; text-align: end;">{{option}}</th>
+                        <td style="text-align: end; padding: 0 1em;"><nobr>{{!poll.responses.get(i, 0)}} votes</nobr></td>
+                        <td style="text-align: end;"><nobr>{{p}}%</nobr></td>
+                        <td style="min-width: 200px"><div style="width:100%; height: 1em; border: 1px solid #007bff; background: #fff"><div style="width:{{!p}}%; height:100%; background-color: #007bff"></div></div></td>
                     </tr>
                 % end
-            </table>
+                </tbody>
+            </table></center>
             <a href="{{!poll.admin_url()}}">Back to admin page</a>
         ''',
         poll=poll,
