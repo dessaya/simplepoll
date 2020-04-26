@@ -10,11 +10,15 @@ alnum = string.ascii_lowercase + string.digits
 def make_key():
     return ''.join(random.choices(alnum, k=6))
 
-def link(path):
-    return f'{request.url[:-len(request.path)].rstrip("/")}{path}'.rstrip('/')
+def full_link(path):
+    return f'{request.urlparts.scheme}://{request.urlparts.netloc}{path}'.rstrip('/')
 
-def index_url():
-    return link('/')
+def basepath():
+    netloc = request.urlparts.netloc
+    return netloc[netloc.index('/'):].rstrip('/') if '/' in netloc else ''
+
+def link(path):
+    return f'{basepath()}{path}'
 
 class Poll:
     def __init__(self, title, options):
@@ -36,7 +40,7 @@ class Poll:
         return link(f'/{self.key}/results')
 
     def vote_url(self):
-        return link(f'/{self.key}')
+        return full_link(f'/{self.key}')
 
     def cast_url(self, i):
         return link(f'/{self.key}/{i}')
@@ -70,7 +74,7 @@ def html(s):
         <title>SimplePoll</title>
         </head><body><section>
             <article>{s}</article>
-            <footer><nav><ul><li><a class="brand" href="{index_url()}">SimplePoll</a></li></ul></nav></footer>
+            <footer><nav><ul><li><a class="brand" href="{link('/')}">SimplePoll</a></li></ul></nav></footer>
         </section>{fork}</body></html>
     '''
 
@@ -80,7 +84,7 @@ def error(status, msg):
 @route('/', method="GET")
 def index():
     return html(f'''
-        <form action="{index_url()}" method="post">
+        <form action="{link('/')}" method="post">
             <h2>Step 1: Configure your poll</h2>
             <div>
             <input style="width: 100%" name="title" id="title" type="text" placeholder="Title" />
@@ -129,7 +133,7 @@ def admin(key):
             <div><button style="font-size:smaller" onclick="copy('{{!vote_url}}', this)">Copy to clipboard</button></div>
             </center>
             <h2>Step 3: View the results</h2>
-            <form action="{{!poll.results_url()}}"><center><input type="submit" value="View poll results"/></center></form>
+            <center><a href="{{!poll.results_url()}}"><button>View poll results</button></a></center>
         ''',
         poll=poll,
     ))
