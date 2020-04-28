@@ -31,10 +31,10 @@ class Poll:
 
     def cast_vote(self, votes):
         if not self.multiple_choice and len(votes) != 1:
-            error(403, 'Expected exactly one vote')
+            error(400, 'Expected exactly one vote')
         for i in votes:
             if i >= len(self.options):
-                error(403, 'Invalid option index')
+                error(400, 'Invalid option index')
             self.responses[i] = self.responses.get(i, 0) + 1
         self.responses_count += 1
 
