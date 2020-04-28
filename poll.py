@@ -21,17 +21,27 @@ def link(path):
     return f'{basepath()}{path}'
 
 class Poll:
-    def __init__(self, title, options):
+    def __init__(self, title, options, multiple_choice):
         self.key = make_key()
         self.title = title
         self.options = options
+        self.multiple_choice = multiple_choice
         self.responses = {}
+        self.responses_count = 0
+
+    def cast_vote(self, votes):
+        if not self.multiple_choice and len(votes) != 1:
+            error(403, 'Expected exactly one vote')
+        for i in votes:
+            if i >= len(self.options):
+                error(403, 'Invalid option index')
+            self.responses[i] = self.responses.get(i, 0) + 1
+        self.responses_count += 1
 
     def percentage(self, i):
-        total = sum(v for k, v in self.responses.items())
-        if not total:
+        if not self.responses_count:
             return 0
-        return int((self.responses.get(i, 0) / total) * 100 + 0.5)
+        return int((self.responses.get(i, 0) / self.responses_count) * 100 + 0.5)
 
     def admin_url(self):
         return link(f'/{self.key}/admin')
@@ -84,15 +94,14 @@ def error(status, msg):
 @route('/', method="GET")
 def index():
     return html(f'''
+        <h2>Step 1: Configure your poll</h2>
         <form action="{link('/')}" method="post">
-            <h2>Step 1: Configure your poll</h2>
-            <div>
+            <fieldset style="width: 100%">
             <input style="width: 100%" name="title" id="title" type="text" placeholder="Title" />
-            </div>
-            <div>
             <textarea style="width: 100%" id="options" name="options" rows="10" cols="50" placeholder="Options (one per line)"></textarea>
-            </div>
+            <label><input type="checkbox" name="multiple_choice">Multiple choice</label>
             <input type="submit" value="Create poll">
+            </fieldset>
         </form>
     ''')
 
@@ -100,12 +109,13 @@ def index():
 def create_poll():
     title = request.forms.title.strip()
     options = [s.strip() for s in request.forms.options.split('\n') if s.strip()]
+    multiple_choice = request.forms.multiple_choice == "on"
 
     if len(options) < 2:
         error(400, 'We need at least 2 options.')
 
     for _ in range(5):
-        poll = Poll(title, options)
+        poll = Poll(title, options, multiple_choice)
         if poll.key not in polls:
             break
     else:
@@ -144,7 +154,7 @@ def poll_results(key):
     return html(template(
         '''
             <h1>{{poll.title}}</h1>
-            <p>{{!sum(poll.responses.values())}} responses</p>
+            <p>Responses: {{!poll.responses_count}}</p>
             <center><table>
                 <tbody>
                 % for (i, option) in enumerate(poll.options):
@@ -171,8 +181,10 @@ def poll_vote_form(key):
             <h1>{{poll.title}}</h1>
             <form action="{{!poll.vote_url()}}" method="post">
                 <fieldset>
+                % type = 'checkbox' if poll.multiple_choice else 'radio'
+                % required = '' if poll.multiple_choice else 'required'
                 % for (i, option) in enumerate(poll.options):
-                    <label><input type="radio" name="option" value="{{!i}}" required>{{option}}</label>
+                    <label><input type="{{!type}}" name="option" value="{{!i}}" {{!required}}>{{option}}</label>
                 % end
                 <input type="submit" value="Vote">
                 </fieldset>
@@ -183,11 +195,8 @@ def poll_vote_form(key):
 
 @route('/<key>', method="POST")
 def poll_cast_vote(key):
-    poll = get_poll(key)
-    i = int(request.forms['option'])
-    if i >= len(poll.options):
-        error(404, 'Not Found')
-    poll.responses[i] = poll.responses.get(i, 0) + 1
+    votes = [int(i) for i in request.forms.getall('option')]
+    get_poll(key).cast_vote(votes)
     return html('<h1>Thank you for voting!</h1>')
 
 run(host='localhost', port=PORT)
