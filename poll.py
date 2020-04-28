@@ -117,7 +117,7 @@ def create_poll():
     redirect(poll.admin_url())
 
 @route('/<key>/admin', method="GET")
-def admin(key):
+def poll_admin(key):
     poll = get_poll(key)
     return html(template(
         '''
@@ -139,7 +139,7 @@ def admin(key):
     ))
 
 @route('/<key>/results', method="GET")
-def results(key):
+def poll_results(key):
     poll = get_poll(key)
     return html(template(
         '''
@@ -164,28 +164,30 @@ def results(key):
     ))
 
 @route('/<key>', method="GET")
-def admin(key):
+def poll_vote_form(key):
     poll = get_poll(key)
     return html(template(
         '''
             <h1>{{poll.title}}</h1>
-            % for (i, option) in enumerate(poll.options):
-                % url = poll.cast_url(i)
-                <div><a href="{{!url}}"><button>{{option}}</button></a></div>
-            % end
+            <form action="{{!poll.vote_url()}}" method="post">
+                <fieldset>
+                % for (i, option) in enumerate(poll.options):
+                    <label><input type="radio" name="option" value="{{!i}}" required>{{option}}</label>
+                % end
+                <input type="submit" value="Vote">
+                </fieldset>
+            </form>
         ''',
         poll=poll,
     ))
 
-@route('/<key>/<i:int>', method="GET")
-def vote(key, i):
+@route('/<key>', method="POST")
+def poll_cast_vote(key):
     poll = get_poll(key)
+    i = int(request.forms['option'])
     if i >= len(poll.options):
         error(404, 'Not Found')
     poll.responses[i] = poll.responses.get(i, 0) + 1
-    return html(template(
-        '<h1>Thank you for voting!</h1><p>You voted: <b>{{option}}</b></p>',
-        option=poll.options[i],
-    ))
+    return html('<h1>Thank you for voting!</h1>')
 
 run(host='localhost', port=PORT)
