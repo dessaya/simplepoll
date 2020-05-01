@@ -2,7 +2,7 @@
 
 Send a quick multiple-choice poll to a live remote audience.
 
-Usage:
+## Usage
 
 ```
 $ python3 poll.py
@@ -13,6 +13,14 @@ $ python3 poll.py
 3.  Copy the poll URL (not the admin URL!) and send it to your audience (eg. via videoconference chat).
 5.  Go to the poll results page.
 
-Note: Polls are stored in RAM, and will be lost when the service is
-restarted. Also, there is a limit of the amount of polls stored, so old ones
+## Persistence
+
+Polls are stored in RAM. Unless the `BACKUP_FILE` environment variable is set, all polls will be
+lost when the service is stopped. To enable backups:
+
+```
+$ BACKUP_FILE=polls.json python3 poll.py
+```
+
+Also, there is a limit on the amount of polls stored (currently set at 100), so old ones
 will be eventually evicted.

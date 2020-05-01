@@ -3,12 +3,14 @@ from collections import OrderedDict
 import random
 import string
 import os
+import json
 
 PORT = int(os.environ.get('PORT', '8000'))
+BACKUP_FILE = os.environ.get('BACKUP_FILE', '')
 
-alnum = string.ascii_lowercase + string.digits
+_ALNUM = string.ascii_lowercase + string.digits
 def make_key():
-    return ''.join(random.choices(alnum, k=6))
+    return ''.join(random.choices(_ALNUM, k=6))
 
 def full_link(path):
     return f'{request.urlparts.scheme}://{request.urlparts.netloc}{path}'.rstrip('/')
@@ -26,7 +28,7 @@ class Poll:
         self.title = title
         self.options = options
         self.multiple_choice = multiple_choice
-        self.responses = {}
+        self.responses = [0 for i in range(len(options))]
         self.responses_count = 0
 
     def cast_vote(self, votes):
@@ -35,13 +37,13 @@ class Poll:
         for i in votes:
             if i >= len(self.options):
                 error(400, 'Invalid option index')
-            self.responses[i] = self.responses.get(i, 0) + 1
+            self.responses[i] += 1
         self.responses_count += 1
 
     def percentage(self, i):
         if not self.responses_count:
             return 0
-        return int((self.responses.get(i, 0) / self.responses_count) * 100 + 0.5)
+        return int((self.responses[i] / self.responses_count) * 100 + 0.5)
 
     def admin_url(self):
         return link(f'/{self.key}/admin')
@@ -55,7 +57,40 @@ class Poll:
     def cast_url(self, i):
         return link(f'/{self.key}/{i}')
 
-polls = OrderedDict()
+    def to_dict(self):
+        return self.__dict__
+
+    @staticmethod
+    def from_dict(d):
+        p = object.__new__(Poll)
+        p.__dict__.update(d)
+        return p
+
+class Backup:
+    @staticmethod
+    def save():
+        if BACKUP_FILE:
+            print()
+            print(f'Saving {len(polls)} polls to {BACKUP_FILE}')
+            with open(BACKUP_FILE, 'w') as f:
+                f.write(json.dumps([p.to_dict() for p in polls.values()]))
+
+    @staticmethod
+    def load():
+        """
+        p = Poll('test', ['a', 'b'], False)
+        polls[p.key] = p
+        p = Poll('test', ['a', 'b'], False)
+        polls[p.key] = p
+        """
+        try:
+            with open(BACKUP_FILE) as f:
+                backup = json.loads(f.read())
+                for p in backup:
+                    polls[p['key']] = Poll.from_dict(p)
+                print(f'Loaded {len(backup)} polls from {BACKUP_FILE}')
+        except Exception as e:
+            print(f'Could not load backup file {BACKUP_FILE}: {e}')
 
 def evict_old_polls():
     while len(polls) > 100:
@@ -65,7 +100,7 @@ def evict_old_polls():
 def get_poll(key):
     return polls.get(key, None) or error(404, 'Not Found')
 
-fork = '''<a href="https://github.com/dessaya/simplepoll" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>'''
+_GITHUB_LINK = '''<a href="https://github.com/dessaya/simplepoll" class="github-corner" aria-label="View source on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style>'''
 
 def html(s):
     return f'''
@@ -85,7 +120,7 @@ def html(s):
         </head><body><section>
             <article>{s}</article>
             <footer><nav><ul><li><a class="brand" href="{link('/')}">SimplePoll</a></li></ul></nav></footer>
-        </section>{fork}</body></html>
+        </section>{_GITHUB_LINK}</body></html>
     '''
 
 def error(status, msg):
@@ -161,7 +196,7 @@ def poll_results(key):
                     % p = poll.percentage(i)
                     <tr>
                         <th style="max-width: 50%; text-align: end;">{{option}}</th>
-                        <td style="text-align: end; padding: 0 1em;"><nobr>{{!poll.responses.get(i, 0)}} votes</nobr></td>
+                        <td style="text-align: end; padding: 0 1em;"><nobr>{{!poll.responses[i]}} votes</nobr></td>
                         <td style="text-align: end;"><nobr>{{p}}%</nobr></td>
                         <td style="min-width: 200px"><div style="width:100%; height: 1em; border: 1px solid #007bff; background: #fff"><div style="width:{{!p}}%; height:100%; background-color: #007bff"></div></div></td>
                     </tr>
@@ -199,4 +234,7 @@ def poll_cast_vote(key):
     get_poll(key).cast_vote(votes)
     return html('<h1>Thank you for voting!</h1>')
 
+polls = OrderedDict()
+Backup.load()
 run(host='localhost', port=PORT)
+Backup.save()
