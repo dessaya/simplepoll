@@ -72,20 +72,17 @@ class Poll:
 class Backup:
     @staticmethod
     def save():
-        if BACKUP_FILE:
-            print()
-            print(f'Saving {len(polls)} polls to {BACKUP_FILE}')
-            with open(BACKUP_FILE, 'w') as f:
-                f.write(json.dumps([p.to_dict() for p in polls.values()]))
+        if not BACKUP_FILE:
+            return
+        print()
+        print(f'Saving {len(polls)} polls to {BACKUP_FILE}')
+        with open(BACKUP_FILE, 'w') as f:
+            f.write(json.dumps([p.to_dict() for p in polls.values()]))
 
     @staticmethod
     def load():
-        """
-        p = Poll('test', ['a', 'b'], False)
-        polls[p.key] = p
-        p = Poll('test', ['a', 'b'], False)
-        polls[p.key] = p
-        """
+        if not BACKUP_FILE:
+            return
         try:
             with open(BACKUP_FILE) as f:
                 backup = json.loads(f.read())
@@ -260,5 +257,7 @@ def poll_cast_vote(key):
 
 polls = OrderedDict()
 Backup.load()
-run(host='localhost', port=PORT)
-Backup.save()
+try:
+    run(host='localhost', port=PORT)
+finally:
+    Backup.save()
