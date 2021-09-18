@@ -2,11 +2,23 @@
 
 Send a quick multiple-choice poll to a live remote audience.
 
-## Usage
+## Run
+
+1. Install the dependencies:
 
 ```
-$ python3 poll.py
+$ python3 -m venv venv
+$ source venv/bin/activate
+(venv) $ pip3 install -r requirements.txt
 ```
+
+2. Start the server:
+
+```
+(venv) python3 poll.py
+```
+
+## Use
 
 1.  Go to `http://localhost:8000`
 2.  Create a poll by entering the title and options.
