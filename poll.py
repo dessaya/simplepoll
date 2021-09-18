@@ -185,6 +185,7 @@ def poll_admin(key):
 
 @route('/<key>/results', method="GET")
 def poll_results(key):
+    show = 'show' in request.query
     poll = get_poll(key)
     return html(template(
         '''
@@ -194,6 +195,7 @@ def poll_results(key):
                 <tbody>
                 % for (i, option) in enumerate(poll.options):
                     % p = poll.percentage(i)
+                    % option = option if show else '???'
                     <tr>
                         <th style="max-width: 50%; text-align: end;">{{option}}</th>
                         <td style="text-align: end; padding: 0 1em;"><nobr>{{!poll.responses[i]}} votes</nobr></td>
@@ -203,9 +205,13 @@ def poll_results(key):
                 % end
                 </tbody>
             </table></center>
+            % if not show:
+                <center><a href="?show"><button>Show results!</button></a></center>
+            % end
             <a href="{{!poll.admin_url()}}">Back to admin page</a>
         ''',
         poll=poll,
+        show=show,
     ))
 
 @route('/<key>', method="GET")
