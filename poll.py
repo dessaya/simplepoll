@@ -63,6 +63,13 @@ class Poll:
     def to_dict(self):
         return self.__dict__
 
+    def enumerate_options(self, show):
+        opts = list(enumerate(self.options))
+        if not show:
+            # return options in random (but always the same) order
+            random.Random(self.key).shuffle(opts)
+        return opts
+
     @staticmethod
     def from_dict(d):
         p = object.__new__(Poll)
@@ -200,15 +207,13 @@ def poll_admin(key):
 
 @route('/<key>/results', method="GET")
 def poll_results(key):
-    show = 'show' in request.query
-    poll = get_poll(key)
     return html(template(
         '''
             <div class="question">{{!poll.question}}</div>
             <p>Responses: {{!poll.responses_count}}</p>
             <center><table>
                 <tbody>
-                % for (i, option) in enumerate(poll.options):
+                % for (i, option) in poll.enumerate_options(show):
                     % p = poll.percentage(i)
                     % option = option if show else '???'
                     <tr>
@@ -225,8 +230,8 @@ def poll_results(key):
             % end
             <a href="{{!poll.admin_url()}}">Back to admin page</a>
         ''',
-        poll=poll,
-        show=show,
+        poll=get_poll(key),
+        show='show' in request.query,
     ))
 
 @route('/<key>', method="GET")
